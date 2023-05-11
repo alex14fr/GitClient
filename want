@@ -1,5 +1,0 @@
-url=$1
-
-echo -en "0032want $2\n000ddeepen 1\n00000009done\n">/tmp/file
-curl -XPOST -H 'Content-type: application/x-git-upload-pack-request' -T /tmp/file -o /tmp/pack -v $url/git-upload-pack
-
