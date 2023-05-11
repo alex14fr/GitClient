@@ -92,7 +92,6 @@ int main(int argc, char **argv) {
 				printf("warning: deflated %ld bytes, expected %u bytes\n", zs.total_out, length); 
 		} else {
 			if(type != 7) { printf("todo\n"); exit(1); }
-			printf("** AT offs 0x%x==%d\n",ftell(f),ftell(f));
 			if(type == 7) {
 				char baseobj[20];
 				printf("baseobj : ");
@@ -102,16 +101,31 @@ int main(int argc, char **argv) {
 				}
 				printf("\n");
 			}
-			char sin[256], *sout, soutt[256];
-			sout=soutt;
+			char sin[ZBUFSZ], *sout;
+			sout=malloc(length);
 			long pos=ftell(f);
-			fread(sin, 256, 1, f);
-			uLong nconsumed=256, ndeflated=256;
-			int zstat=uncompress2((Bytef*)sout, &ndeflated, (Bytef*)sin, &nconsumed);
-			fseek(f, pos+nconsumed, SEEK_SET);
-			printf("** zstat=%d nconsumed=%ld ndeflated=%d\n", zstat, nconsumed, ndeflated);
+			struct z_stream_s zs;
+			zs.next_in=(Bytef*)sin; zs.avail_in=0; zs.total_in=0;
+			zs.next_out=(Bytef*)sout; zs.avail_out=length; zs.total_out=0;
+			zs.zalloc=Z_NULL; zs.zfree=Z_NULL; zs.opaque=Z_NULL;
+			inflateInit(&zs);
+			while(1) {
+				if(zs.avail_in==0) {
+					int nreadd=fread(sin, 1, ZBUFSZ, f);
+					zs.avail_in=nreadd;
+				}
+				int zstat=inflate(&zs, Z_FINISH);
+				if(zstat==Z_NEED_DICT || zstat==Z_DATA_ERROR || zstat==Z_STREAM_ERROR) {
+					printf("deflate error %d %s\n", zstat, zs.msg);
+					exit(1);
+				}
+				if(zstat==Z_STREAM_END)
+					break;
+			};
+			fseek(f, pos+zs.total_in, SEEK_SET);
+			inflateEnd(&zs);
 			printf("delta data:\n");
-			for(int k=0;k<ndeflated;k++) printf("%hhx ", sout[k]);
+			for(uint32_t k=0;k<length;k++) printf("%hhx ", sout[k]);
 			printf("\n");
 			uint32_t sz_baseobj=0, sz_targobj=0;
 			int j=0;
@@ -158,6 +172,7 @@ int main(int argc, char **argv) {
 				}
 				printf("targobj_done=%d sz_targobj=%d\n",targobj_done,sz_targobj);
 			}
+			free(sout-length);
 		}
 	//	break;
 	}
