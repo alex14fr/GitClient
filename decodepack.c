@@ -124,9 +124,11 @@ int main(int argc, char **argv) {
 			};
 			fseek(f, pos+zs.total_in, SEEK_SET);
 			inflateEnd(&zs);
+			/*
 			printf("delta data:\n");
 			for(uint32_t k=0;k<length;k++) printf("%hhx ", sout[k]);
 			printf("\n");
+			*/
 			uint32_t sz_baseobj=0, sz_targobj=0;
 			int j=0;
 			do {
@@ -134,18 +136,15 @@ int main(int argc, char **argv) {
 				sz_baseobj += ((x & 0b01111111) << (7*j));
 				j++;
 			} while((x & 0b10000000)!=0);
-			printf("sz_baseobj=%d\n",sz_baseobj);
 			j=0;
 			do {
 				x=*sout; sout++; 
 				sz_targobj += ((x & 0b01111111) << (7*j));
 				j++;
 			} while((x & 0b10000000)!=0);
-			printf("sz_targobj=%d\n",sz_targobj);
 			uint32_t targobj_done=0;
 			while(targobj_done < sz_targobj) {
 				x=*sout; sout++; 
-				printf("GOT %x\n",x);
 				if((x&0b10000000)==0) {
 					printf("append data length=%d: \n",x&0b01111111);
 					char tmp;
@@ -170,8 +169,9 @@ int main(int argc, char **argv) {
 					printf("copy from base offset=%d size=%d\n", offset, size);
 					targobj_done += size;
 				}
-				printf("targobj_done=%d sz_targobj=%d\n",targobj_done,sz_targobj);
+				//printf("targobj_done=%d sz_targobj=%d\n",targobj_done,sz_targobj);
 			}
+			if(targobj_done != sz_targobj) { printf("warning: targobj_done=%d, expected %d\n", targobj_done, sz_targobj); }
 			free(sout-length);
 		}
 	//	break;
