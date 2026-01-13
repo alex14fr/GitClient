@@ -41,7 +41,9 @@ int main(int argc, char **argv) {
 	uint32_t n_obj;
 	fread(&n_obj, 4, 1, f);
 	n_obj=ntohl(n_obj);
+	printf("n_obj : %d\n", n_obj);
 	for(uint32_t i=0; i<n_obj; i++) {
+		printf("* obj_i=%d\n", i);
 		uint32_t length=0;
 		uint8_t type;
 		uint8_t x;
@@ -72,15 +74,19 @@ int main(int argc, char **argv) {
 			while(1) {
 				if(zs.avail_in==0) {
 					nreadd=fread(sin, 1, ZBUFSZ, f);
+					zs.next_in=(Bytef*)sin;
 					zs.avail_in=nreadd;
 					if(nreadd<=0) { perror("fread source"); exit(1); }
 				}
-				zstat=inflate(&zs, Z_FINISH);
+				zstat=inflate(&zs, Z_NO_FLUSH);
 				if(zstat==Z_NEED_DICT || zstat==Z_DATA_ERROR || zstat==Z_STREAM_ERROR) {
 					printf("deflate error %d %s\n", zstat, zs.msg);
 					exit(1);
 				}
-				if(fwrite(sout, 2*ZBUFSZ-zs.avail_out, 1, ff)<=0) { perror("fwrite dest"); exit(1); }
+				//printf("    zstat = %d   zs.total_in = %d    zs.total_out = %d    zs.avail_in = %d    zs.avail_out = %d\n", zstat, zs.total_in, zs.total_out, zs.avail_in, zs.avail_out);
+				if(2*ZBUFSZ > zs.avail_out) {
+					if(fwrite(sout, 2*ZBUFSZ-zs.avail_out, 1, ff)<=0) { perror("fwrite dest"); exit(1); }
+				}
 				if(zstat == Z_STREAM_END)
 					break;
 				zs.next_out=(Bytef*)sout; zs.avail_out=2*ZBUFSZ;
@@ -112,13 +118,15 @@ int main(int argc, char **argv) {
 			while(1) {
 				if(zs.avail_in==0) {
 					int nreadd=fread(sin, 1, ZBUFSZ, f);
+					zs.next_in=(Bytef*)sin;
 					zs.avail_in=nreadd;
 				}
-				int zstat=inflate(&zs, Z_FINISH);
+				int zstat=inflate(&zs, Z_NO_FLUSH);
 				if(zstat==Z_NEED_DICT || zstat==Z_DATA_ERROR || zstat==Z_STREAM_ERROR) {
 					printf("deflate error %d %s\n", zstat, zs.msg);
 					exit(1);
 				}
+				printf("    zstat = %d   zs.total_in = %d    zs.total_out = %d    zs.avail_in = %d    zs.avail_out = %d\n", zstat, zs.total_in, zs.total_out, zs.avail_in, zs.avail_out);
 				if(zstat==Z_STREAM_END)
 					break;
 			};
